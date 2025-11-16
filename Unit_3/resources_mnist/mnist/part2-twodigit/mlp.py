@@ -7,23 +7,29 @@ import utils_multiMNIST as U
 path_to_data_dir = '../Datasets/'
 use_mini_dataset = True
 
-batch_size = 64
-nb_classes = 10
-nb_epoch = 30
-num_classes = 10
-img_rows, img_cols = 42, 28 # input image dimensions
+BATCH_SIZE = 64
+NB_CLASSES = 10
+NB_EPOCH = 30
+NUM_CLASSES = 10
+IMG_ROW, IMG_COL = 42, 28 # input image dimensions
 
 class MLP(nn.Module):
 
     def __init__(self, input_dimension):
         super(MLP, self).__init__()
         self.flatten = Flatten()
-        # TODO initialize model layers here
+        self.neural_net = nn.Sequential(
+            nn.Linear(input_dimension, 64),
+            nn.ReLU(),
+            nn.Linear(64, 20),
+            # nn.Softmax(dim=1)
+        )
 
     def forward(self, x):
         xf = self.flatten(x)
-
-        # TODO use model layers to predict the two digits
+        y_ = self.neural_net(xf)
+        out_first_digit = y_[:, :10]
+        out_second_digit = y_[:, 10:]
 
         return out_first_digit, out_second_digit
 
@@ -43,18 +49,18 @@ def main():
     y_train = [[y_train[0][i] for i in permutation], [y_train[1][i] for i in permutation]]
 
     # Split dataset into batches
-    train_batches = batchify_data(X_train, y_train, batch_size)
-    dev_batches = batchify_data(X_dev, y_dev, batch_size)
-    test_batches = batchify_data(X_test, y_test, batch_size)
+    train_batches = batchify_data(X_train, y_train, BATCH_SIZE)
+    dev_batches = batchify_data(X_dev, y_dev, BATCH_SIZE)
+    test_batches = batchify_data(X_test, y_test, BATCH_SIZE)
 
     # Load model
-    input_dimension = img_rows * img_cols
+    input_dimension = IMG_ROW * IMG_COL
     model = MLP(input_dimension) # TODO add proper layers to MLP class above
 
     # Train
     train_model(train_batches, dev_batches, model)
 
-    ## Evaluate the model on test data
+    # Evaluate the model on test data
     loss, acc = run_epoch(test_batches, model.eval(), None)
     print('Test loss1: {:.6f}  accuracy1: {:.6f}  loss2: {:.6f}   accuracy2: {:.6f}'.format(loss[0], acc[0], loss[1], acc[1]))
 
