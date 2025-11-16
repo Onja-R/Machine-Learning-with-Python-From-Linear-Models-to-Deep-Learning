@@ -1,0 +1,9 @@
+# Environnements virtuels
+.venv
+uv.lock
+
+# Fichiers temporaires
+.temp
+
+# Fichiers data
+
