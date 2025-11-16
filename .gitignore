@@ -6,4 +6,6 @@ uv.lock
 .temp
 
 # Fichiers data
-
+*.tar.gz
+*.pkl.gz
+*.txt.gz
