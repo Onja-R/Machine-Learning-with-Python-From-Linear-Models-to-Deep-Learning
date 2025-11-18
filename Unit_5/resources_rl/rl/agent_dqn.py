@@ -5,9 +5,10 @@ import torch.optim as optim
 import torch.nn.functional as F
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 import framework
 import utils
+from tqdm import tqdm
+from agent_linear import *
 
 DEBUG = False
 
@@ -29,7 +30,7 @@ model = None
 optimizer = None
 
 
-def epsilon_greedy(state_vector, epsilon):
+def epsilon_greedy(state_1, state_2, q_func, epsilon):
     """Returns an action selected by an epsilon-greedy exploration policy
 
     Args:
@@ -40,8 +41,17 @@ def epsilon_greedy(state_vector, epsilon):
     Returns:
         (int, int): the indices describing the action/object to take
     """
-    # TODO Your code here
-    action_index, object_index = None, None
+    coin = np.random.random_sample()
+    if coin < epsilon:
+        action_index = np.random.randint(NUM_ACTIONS)
+        object_index = np.random.randint(NUM_OBJECTS)
+    else:
+        q_values = q_func[state_1, state_2, :, :]
+        (action_index, object_index) = np.unravel_index(
+            np.argmax(q_values, axis=None),
+            q_values.shape
+            )
+
     return (action_index, object_index)
 
 class DQN(nn.Module):
@@ -80,12 +90,12 @@ def deep_q_learning(current_state_vector, action_index, object_index, reward,
         q_values_action_next, q_values_object_next = model(next_state_vector)
     maxq_next = 1 / 2 * (q_values_action_next.max()
                          + q_values_object_next.max())
-
     q_value_cur_state = model(current_state_vector)
-
-    # TODO Your code here
-
-    loss = None
+    q_value = 1 / 2 * (q_value_cur_state[0][action_index] + q_value_cur_state[1][object_index])
+    tqv = torch.unsqueeze(q_value, 0)
+    y = torch.FloatTensor([reward + GAMMA * maxq_next * (not terminal)])
+    # loss = F.smooth_l1_loss(tqv, y)
+    loss = (y - tqv)**2 / 2
 
     optimizer.zero_grad()
     loss.backward()
@@ -100,32 +110,51 @@ def run_episode(for_training):
         If for testing, computes and return cumulative discounted reward
     """
     epsilon = TRAINING_EP if for_training else TESTING_EP
-    epi_reward = None
-
-    # initialize for each episode
-    # TODO Your code here
+    gamma_step = 1
+    epi_reward = 0
 
     (current_room_desc, current_quest_desc, terminal) = framework.newGame()
     while not terminal:
         # Choose next action and execute
-        current_state = current_room_desc + current_quest_desc
-        current_state_vector = torch.FloatTensor(
-            utils.extract_bow_feature_vector(current_state, dictionary))
-
-        # TODO Your code here
+        cur_room_desc_id = dict_room_desc[current_room_desc]
+        cur_quest_desc_id = dict_quest_desc[current_quest_desc]
+        (action_index, object_index) = epsilon_greedy(
+            cur_room_desc_id,
+            cur_quest_desc_id,
+            q_func, 
+            epsilon
+            )
+        (next_room_desc, next_quest_desc, reward, terminal) = framework.step_game(
+            current_room_desc, 
+            current_quest_desc,
+            action_index, 
+            object_index
+            )
 
         if for_training:
             # update Q-function.
-            # TODO Your code here
-            pass
+            next_room_desc_id = dict_room_desc[next_room_desc]
+            next_quest_desc_id = dict_quest_desc[next_quest_desc]
+            tabular_q_learning(
+                q_func, 
+                cur_room_desc_id, 
+                cur_quest_desc_id,
+                action_index, 
+                object_index, 
+                reward,
+                next_room_desc_id, 
+                next_quest_desc_id, 
+                terminal
+                )
 
         if not for_training:
             # update reward
-            # TODO Your code here
-            pass
+            epi_reward = epi_reward + gamma_step * reward
+            gamma_step = gamma_step * GAMMA
 
         # prepare next step
-        # TODO Your code here
+        current_room_desc = next_room_desc
+        current_quest_desc = next_quest_desc
 
     if not for_training:
         return epi_reward
