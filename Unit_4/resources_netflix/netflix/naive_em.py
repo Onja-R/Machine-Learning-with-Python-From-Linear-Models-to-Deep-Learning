@@ -187,8 +187,8 @@ def run(X: np.ndarray, mixture: GaussianMixture,
             for all components for all examples
         float: log-likelihood of the current assignment
     """
-    old_ll = None
-    new_ll = None
+    old_ll = new_ll = post = None
+
     while (old_ll is None or new_ll - old_ll > 1e-6 * abs(new_ll)):
         old_ll = new_ll
         post, new_ll = estep(X, mixture)
